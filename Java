@@ -1,0 +1,190 @@
+1. Dependências no (pom.xml)
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.h2database</groupId>
+    <artifactId>h2</artifactId>
+</dependency>
+
+2. Configuração do Banco de Dados no (application.properties)
+
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.h2.console.enabled=true
+spring.jpa.hibernate.ddl-auto=update
+
+3. Classe Modelo(Task)
+
+import jakarta.persistence.*;
+import java.time.LocalDate;
+
+@Entity
+public class Task {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+    private String description;
+    private String status; // Ex.: "Pendente", "Concluído"
+    private LocalDate deadline;
+
+    // Getters e Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public LocalDate getDeadline() {
+        return deadline;
+    }
+
+    public void setDeadline(LocalDate deadline) {
+        this.deadline = deadline;
+    }
+}
+
+4. Repositório(TaskRepository)
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface TaskRepository extends JpaRepository<Task, Long> {
+}
+
+5. Serviço(TaskService)
+
+import org.springframework.stereotype.Service;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class TaskService {
+    private final TaskRepository taskRepository;
+
+    public TaskService(TaskRepository taskRepository) {
+        this.taskRepository = taskRepository;
+    }
+
+    public List<Task> getAllTasks() {
+        return taskRepository.findAll();
+    }
+
+    public Task createTask(Task task) {
+        return taskRepository.save(task);
+    }
+
+    public Optional<Task> getTaskById(Long id) {
+        return taskRepository.findById(id);
+    }
+
+    public Task updateTask(Long id, Task updatedTask) {
+        return taskRepository.findById(id)
+                .map(task -> {
+                    task.setName(updatedTask.getName());
+                    task.setDescription(updatedTask.getDescription());
+                    task.setStatus(updatedTask.getStatus());
+                    task.setDeadline(updatedTask.getDeadline());
+                    return taskRepository.save(task);
+                }).orElseThrow(() -> new RuntimeException("Task não encontrada."));
+    }
+
+    public void deleteTask(Long id) {
+        taskRepository.deleteById(id);
+    }
+}
+
+6. Controlador(TaskController)
+
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/tasks")
+public class TaskController {
+    private final TaskService taskService;
+
+    public TaskController(TaskService taskService) {
+        this.taskService = taskService;
+    }
+
+    @GetMapping
+    public List<Task> getAllTasks() {
+        return taskService.getAllTasks();
+    }
+
+    @PostMapping
+    public Task createTask(@RequestBody Task task) {
+        return taskService.createTask(task);
+    }
+
+    @GetMapping("/{id}")
+    public Task getTaskById(@PathVariable Long id) {
+        return taskService.getTaskById(id).orElseThrow(() -> new RuntimeException("Task não encontrada."));
+    }
+
+    @PutMapping("/{id}")
+    public Task updateTask(@PathVariable Long id, @RequestBody Task updatedTask) {
+        return taskService.updateTask(id, updatedTask);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteTask(@PathVariable Long id) {
+        taskService.deleteTask(id);
+    }
+}
+
+/*
+  Testando a Aplicação
+Inicie o projeto e acesse os endpoints REST usando ferramentas como Postman ou diretamente via navegador:
+
+GET /api/tasks - Lista todas as tarefas.
+
+POST /api/tasks - Cria uma nova tarefa.
+
+GET /api/tasks/{id} - Recupera uma tarefa específica.
+
+PUT /api/tasks/{id} - Atualiza uma tarefa existente.
+
+DELETE /api/tasks/{id} - Exclui uma tarefa.
+
+Acesse o console H2 (caso use o banco H2) em http://localhost:8080/h2-console.
+*/
